@@ -86,7 +86,7 @@ To run the full application, you need to start both the backend server and the f
 
 In your first terminal, run the following command from the project's root directory:
 
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   uvicorn main:app --reload   `
+`   uvicorn main:app --reload   `
 
 The backend API will be available at http://127.0.0.1:8000.
 
@@ -94,7 +94,7 @@ The backend API will be available at http://127.0.0.1:8000.
 
 In a second terminal, run this command from the project's root directory:
 
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   streamlit run Frontend/frontend.py   `
+`   streamlit run Frontend/frontend.py   `
 
 The Streamlit web interface will open in your browser, typically at http://localhost:8501.
 
