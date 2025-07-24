@@ -16,7 +16,7 @@ Features
     
 *   **Easy to Deploy**: Built with FastAPI, making the server lightweight and easy to run.
     
-
+*   **Conversation storing**: Built with mongodb.
 Technology Stack
 ----------------
 
@@ -33,7 +33,8 @@ This project is built with a modern Python stack designed for building AI-powere
 *   **Embedding Model**: [**Sentence-Transformers**](https://www.sbert.net/) (all-MiniLM-L6-v2) for converting text chunks into meaningful vector representations.
     
 *   **Language Model (LLM)**: Easily configurable to work with models from providers like **Nebius AI**, **OpenAI**, and others.
-    
+
+*   **NoSQL Database**: [**MongoDB**](https://www.mongodb.com/) for storing user conversations.
 
 Getting Started
 ---------------
@@ -49,7 +50,8 @@ Follow these instructions to get the project running on your local machine.
 *   A Pinecone account (free tier is available)
     
 *   An API key from an LLM provider (e.g., Nebius AI)
-    
+
+*   Mongodb installed on your system. 
 
 ### Installation
 
@@ -125,3 +127,28 @@ The backend provides the following APIs, which are used by the frontend:
     *   **Description**: Deletes all vectors from the Pinecone index. **Use with caution!**
         
     *   **Response**: A success message.
+
+*   **POST /query**
+    *   **Description**: Allows the user to send query to the server.
+        
+    *   **Response**: A success message.
+
+*   **POST /conversation**
+    *   **Description**: To create a new conversation in the database. 
+        
+    *   **Response**: A success message.
+
+*   **GET /conversation**
+    
+    *   **Description**: Retrieves the old conversation.
+
+*   **GET /conversations**
+    
+    *   **Description**: Retrieves all the existing conversations.
+
+*   **DELETE /conversation/{}**
+    
+    *   **Description**: Deletes a conversation.
+
+        
+    
