@@ -6,10 +6,12 @@ class QueryRequest(BaseModel):
 
 class RetrieveQuery(BaseModel):
     query: constr(min_length=3, max_length=200) # type: ignore
-    
+    convo_id: str
+
 class QueryResponse(BaseModel):
     query: str
     results: List[str]
 
 class LLMResponse(BaseModel):
     response: str
+    convo_id: str

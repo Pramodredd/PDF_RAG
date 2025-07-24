@@ -85,3 +85,5 @@ def query_chunks(query_text: str) -> List[str]:
         print(f"Error in query_chunks: {e}")
         # Re-raise or return an empty list depending on desired error handling
         raise HTTPException(status_code=500, detail=f"Failed to query chunks: {e}")
+    
+

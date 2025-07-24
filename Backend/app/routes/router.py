@@ -6,9 +6,12 @@ import os
 from pathlib import Path
 from app.Function.chunking import query_chunks, convert_document, chunk_document, embed_store_chunks
 from typing import List
-
+from datetime import datetime
 # Assuming these are correctly imported and initialized
 from app.db.pinecone import pinecone
+from app.db.mongo import chat_history_collection
+from bson import ObjectId
+from app.Function.crud_operations import create_conversation, store_user_message, store_bot_reply
 from app.model.model import get_llm # We only need the get_llm function
 from app.schemas.schema1 import QueryRequest, RetrieveQuery, QueryResponse, LLMResponse
 
@@ -84,10 +87,11 @@ async def upload_file(file: UploadFile = File(...)):
 async def fetch_response(payload: RetrieveQuery = Depends()):
     """
     Retrieves relevant context from the database, passes it to the LLM with the user's query,
-    and returns the generated response.
+    and returns the generated response. Also stores the user message and bot reply.
     """
     query = payload.query
-    
+    convo_id = payload.convo_id
+
     try:
         # 1. Retrieve relevant context from the vector database
         relevant_chunks = query_chunks(query)
@@ -95,7 +99,11 @@ async def fetch_response(payload: RetrieveQuery = Depends()):
         
         # If no context is found, we can optionally short-circuit
         if not context.strip():
-            return {"response": "I could not find any relevant information in the uploaded documents to answer your question."}
+            bot_reply = "I could not find any relevant information in the uploaded documents to answer your question."
+            if convo_id:
+                store_user_message(convo_id, query, datetime.now())
+                store_bot_reply(convo_id, bot_reply, datetime.now())
+            return {"response": bot_reply, "convo_id": convo_id}
 
         # 2. Get the initialized LLM
         llm = get_llm()
@@ -112,9 +120,13 @@ async def fetch_response(payload: RetrieveQuery = Depends()):
         # Use the modern .invoke() method, which is the correct way.
         llm_response = llm.invoke(final_prompt)
         
-        # 4. Return the response.
-        # No need to parse the response here; the LLM class should return a clean string.
-        return {"response": llm_response}
+        # 4. Store user message and bot reply if convo_id is provided
+        if convo_id:
+            store_user_message(convo_id, query, datetime.now())
+            store_bot_reply(convo_id, llm_response, datetime.now())
+
+        # 5. Return the response.
+        return {"response": llm_response, "convo_id": convo_id}
 
     except Exception as e:
         import traceback
@@ -137,3 +149,108 @@ async def clear_database():
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to clear Pinecone database: {e}")
+
+# @router.get("/conversation")
+# async def get_conversation(convo_id: str = None):
+#     """
+#     Retrieves a conversation by its ID, or the latest conversation if no ID is provided.
+#     """
+#     try:
+#         if convo_id:
+#             convo = chat_history_collection.find_one({"_id": ObjectId(convo_id)})
+#             if not convo:
+#                 raise HTTPException(status_code=404, detail="Conversation not found.")
+#         else:
+#             convo = chat_history_collection.find_one(sort=[("_id", -1)])
+#             if not convo:
+#                 raise HTTPException(status_code=404, detail="No conversations found.")
+#         convo["_id"] = str(convo["_id"])
+#         return convo
+#     except Exception as e:
+#         import traceback
+#         traceback.print_exc()
+#         raise HTTPException(status_code=500, detail=f"Failed to retrieve conversation: {e}")
+
+@router.get("/conversation")
+async def get_conversation(convo_id: str = None):
+    """
+    Retrieves a conversation by its ID, or the latest conversation if no ID is provided.
+    """
+    try:
+        if convo_id:
+            convo = chat_history_collection.find_one({"_id": ObjectId(convo_id)})
+            if not convo:
+                raise HTTPException(status_code=404, detail="Conversation not found.")
+        else:
+            # Sort by _id which is chronological by default
+            convo = chat_history_collection.find_one(sort=[("_id", -1)])
+            if not convo:
+                raise HTTPException(status_code=404, detail="No conversations found.")
+
+        # 1. Convert the main document's ID and rename the key
+        convo["id"] = str(convo.pop("_id"))
+
+        # 2. Check for and convert IDs within the nested messages array
+        if "messages" in convo and isinstance(convo["messages"], list):
+            for message in convo["messages"]:
+                if "_id" in message:
+                    message["id"] = str(message.pop("_id"))
+        return convo
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve conversation: {e}")
+
+@router.post("/conversation")
+def create_conversation_route():
+    """
+    Creates a new conversation and returns its ID.
+    """
+    try:
+        convo_id = create_conversation()
+        return ({"id": convo_id})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to create conversation: {e}")
+    
+@router.get("/conversations")
+async def get_all_conversations():
+    """
+    Retrieves a list of all conversations, returning only their ID and creation date.
+    """
+    try:
+        # Project to only get the necessary fields, and sort by most recent
+        cursor = chat_history_collection.find({}, {"messages": 0}).sort("_id", -1)
+        
+        conversations = []
+        for convo in cursor:
+            convo["id"] = str(convo.pop("_id"))
+            conversations.append(convo)
+            
+        return conversations
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve conversations: {e}")
+    
+from fastapi import status
+
+@router.delete("/conversation/{convo_id}", status_code=status.HTTP_200_OK)
+async def delete_conversation(convo_id: str):
+    """
+    Deletes a conversation document from MongoDB by its ID.
+    """
+    try:
+        # Convert string ID to ObjectId
+        object_id = ObjectId(convo_id)
+        
+        # Perform the delete operation
+        result = chat_history_collection.delete_one({"_id": object_id})
+        
+        if result.deleted_count == 1:
+            return {"message": "Conversation deleted successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete conversation: {e}")
